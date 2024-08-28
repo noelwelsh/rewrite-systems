@@ -15,10 +15,11 @@
   // some restrictions on rewrites:
   //
   // 1. a rewrite may match any number of entities within the list, but those
-  // must be at the start of the list
+  // must all be consecutive elements and start at the start of the list
   //
   // 2. if the rewrite matches it must rewrite the elements it matches to a
-  // single element, and leave the rest of the list alone.
+  // single element at the start of its result, and leave the rest of the list
+  // alone.
   //
   // These two criteria allow us to ensure we make progress in rewriting and
   // don't endlessly loop. The criteria are bit imprecisely expressed above.
@@ -93,13 +94,13 @@
         rule(text) match {
           case None               => head :: rewrite(rest, rule)
           case Some(head :: rest) =>
-            // The conditions on rewrites ensure that if they match the head is
-            // rewritten result and rest is unmatched remainder that we should
-            // attempt to process.
+            // The conditions on rewrites ensure that if they match, the head is
+            // the rewritten result and rest is the unmatched remainder that we
+            // should attempt to process.
             head :: rewrite(rest, rule)
           case Some(Nil) =>
-            // This case can't happen but need it to make exhaustiveness happy
-            // (and to catch buggy rules!)
+            // This case can't happen but need it to make exhaustiveness
+            // checking happy (and to catch buggy rules!)
             throw new Exception(
               s"A Rewrite rule returned Nil on input $text, which should never happen."
             )
@@ -131,7 +132,7 @@
   // couldn't safely write this rule.
   //
   // Does it work, though? Well, we need to apply the rules multiple times to
-  // see it taking effect.
+  // see it taking effect, so we need to implement a method that does this.
   def iterate[A](text: List[Char | A], rule: Rewrite[A]): List[Char | A] = {
     println(text)
 
@@ -158,7 +159,10 @@
   // shows why: we combine two pairs 1 and 0, and 1 and 2 to get 10 and 12, then
   // compute (10 * 10) + 12 when we really want (10 * 100) + 12.
   //
-  // Let's correct the implementation
+  // Let's correct the implementation. The number of digits in the right hand
+  // side number tells us how many zeros we need to add to the left hand side
+  // number. We can compute this by taking the floor or the log base 10 of the
+  // right hand side number.
   def log10(x: Int) = Math.log(x.toDouble) / Math.log(10)
 
   val multiDigitCorrect: Rewrite[Entity] =
@@ -174,5 +178,8 @@
   // Better test it!
   println(iterate("1012".toList, singleDigit.orElse(multiDigitCorrect)))
   println(iterate("65535".toList, singleDigit.orElse(multiDigitCorrect)))
+  println(iterate("262144".toList, singleDigit.orElse(multiDigitCorrect)))
   println(iterate("16777215".toList, singleDigit.orElse(multiDigitCorrect)))
+
+  // It works!
 }
