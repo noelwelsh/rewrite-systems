@@ -1,14 +1,12 @@
 // # Preface
 //
-// This is a Scala CLI file
-// To run it, use
+// This is a Scala CLI file. To run it, use
 //
 //  scala-cli 01-rewrites.scala
 //
 // or (from Scala 3.5 onwards)
 //
 //  scala 01-rewrites.scala
-
 
 // # Rewrite Systems: Introduction
 //
@@ -101,10 +99,10 @@ enum Expr {
 
   override def toString(): String =
     this match {
-      case Var(name) => name
-      case Const(value) => value.toString()
-      case Add(left, right) => s"($left + $right)"
-      case Mul(left, right) => s"($left * $right)"
+      case Var(name)             => name
+      case Const(value)          => value.toString()
+      case Add(left, right)      => s"($left + $right)"
+      case Mul(left, right)      => s"($left * $right)"
       case Deriv(variable, expr) => s"D_${variable.name}($expr)"
     }
 }
@@ -115,16 +113,18 @@ object Rules {
   import Expr.*
 
   val r1: Rewrite[Expr, Expr] =
-    Rewrite.lift{ case Deriv(Var(v1), Var(v2)) if v1 == v2 => Const(1) }
+    Rewrite.lift { case Deriv(Var(v1), Var(v2)) if v1 == v2 => Const(1) }
 
   val r2: Rewrite[Expr, Expr] =
-    Rewrite.lift{ case Deriv(Var(v1), Var(v2)) if v1 != v2 => Const(0) }
+    Rewrite.lift { case Deriv(Var(v1), Var(v2)) if v1 != v2 => Const(0) }
 
   val r3: Rewrite[Expr, Expr] =
-    Rewrite.lift{ case Deriv(x, Add(u, v)) => Deriv(x, u) + Deriv(x, v) }
+    Rewrite.lift { case Deriv(x, Add(u, v)) => Deriv(x, u) + Deriv(x, v) }
 
   val r4: Rewrite[Expr, Expr] =
-    Rewrite.lift{ case Deriv(x, Mul(u, v)) => (u * Deriv(x, v)) + (Deriv(x, u) * v) }
+    Rewrite.lift { case Deriv(x, Mul(u, v)) =>
+      (u * Deriv(x, v)) + (Deriv(x, u) * v)
+    }
 }
 
 // Now we need a method to apply a rule to an expression.
@@ -177,5 +177,5 @@ val expr = Deriv(Var("x"), (Var("x") * Var("x")))
 // ((x * 1) + (1 * x))
 //
 // which shows the process of calculating the derivative of x^2
-@main def go(): Unit =
+@main def differentiate(): Unit =
   iterate(expr, rule)
