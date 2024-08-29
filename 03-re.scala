@@ -190,7 +190,7 @@
     text match {
       case head :: rest =>
         rule(text) match {
-          case None               => head :: rewrite(rest, rule)
+          case None                    => head :: rewrite(rest, rule)
           case Some((rewritten, rest)) => rewritten ++ rewrite(rest, rule)
         }
 
