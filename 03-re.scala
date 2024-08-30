@@ -13,7 +13,7 @@
     def `*`: Regexp[A] = this.repeat
     def `+`: Regexp[A] = this ++ (this.repeat)
 
-    def matches(input: List[A]): Option[(List[A], List[A])] =
+    def matches[AA >: A](input: List[AA]): Option[(List[A], List[AA])] =
       this match {
         case Append(left, right) =>
           left.matches(input) match {
@@ -33,7 +33,7 @@
           first.matches(input).orElse(second.matches(input))
 
         case Repeat(source) =>
-          def loop(matched: List[A], rest: List[A]): Option[(List[A], List[A])] =
+          def loop(matched: List[A], rest: List[AA]): Option[(List[A], List[AA])] =
             rest match {
               case Nil => Some((matched, rest))
               case other =>
@@ -46,7 +46,7 @@
           loop(List.empty, input)
 
         case Apply(elts) =>
-          def loop(find: List[A], rest: List[A]): Option[(List[A], List[A])] =
+          def loop(find: List[A], rest: List[AA]): Option[(List[A], List[AA])] =
             if find.isEmpty then Some(elts, rest)
             else {
               val a = find.head
@@ -61,10 +61,11 @@
 
           loop(elts, input)
 
-        case Predicate(f) =>
+        case Refine(f) =>
           input match {
             case Nil => None
-            case a :: rest => Option.when(f(a))((List(a), rest))
+            case a :: rest =>
+              f(a).map(a => (List(a), rest))
           }
 
         case Empty() => Some(Nil, input)
@@ -74,7 +75,7 @@
     case OrElse(first: Regexp[A], second: Regexp[A])
     case Repeat(source: Regexp[A])
     case Apply(elts: List[A])
-    case Predicate(f: A => Boolean)
+    case Refine(f: Any => Option[A])
     case Empty()
   }
   object Regexp {
@@ -83,8 +84,8 @@
     def apply[A](elt: A, elts: A*): Regexp[A] =
       Apply((elt +: elts).toList)
 
-    def predicate[A](f: A => Boolean): Regexp[A] =
-      Predicate(f)
+    def refine[A](f: Any => Option[A]): Regexp[A] =
+       Refine(f)
   }
 
 
@@ -112,9 +113,9 @@
           lifted(in)
       }
 
-    def lift[A](re: Regexp[A | Char])(f: List[A | Char] => List[A]): Rewrite[A] =
+    def lift[A, AA >: A](re: Regexp[A])(f: List[A] => List[AA]): Rewrite[AA] =
       new Rewrite {
-        def apply(in: List[A | Char]): Option[(List[A], List[A | Char])] =
+        def apply(in: List[AA | Char]): Option[(List[AA], List[AA | Char])] =
           re.matches(in) match {
             case None => None
             case Some((matched, rest)) => Some((f(matched), rest))
@@ -131,9 +132,9 @@
   import Entity.*
 
 
-  val digitRe = Regexp.predicate[Entity | Char]{
-    case Digit(_) => true
-    case _ => false
+  val digitRe = Regexp.refine[Digit]{
+    case Digit(d) => Some(Digit(d))
+    case _ => None
   }
 
   val digit: Rewrite[Entity] =
@@ -171,8 +172,9 @@
     // We can't prove to the type checker that digits is always a List[Digit], but
     // it must be beause digitRe will only match in this condition. Hence we use
     // asInstanceOf. Don't tell anyone!
-    Rewrite.lift[Entity](digitRe.+){ case Digit(d) :: digits =>
-      List(Number(d), NumberBlock(digits.asInstanceOf[List[Digit]]))
+    Rewrite.lift[Digit, Entity](digitRe.+){
+      case Digit(d) :: digits => List(Number(d), NumberBlock(digits))
+      case Nil => throw new Exception("Regexp matched 0 elements. This should not happen.")
     }
 
   val splitNumberBlock: Rewrite[Entity] =
